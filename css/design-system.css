@@ -1,0 +1,1447 @@
+/* ============================================================
+   design-system.css — 我的声音也能成曲 视觉规范 v2
+   ------------------------------------------------------------
+   本文件是「精整流程」的产物：建立统一的视觉规范，替代此前
+   散落在各处的裸色值与临时样式。
+
+   设计约束（不可违背）：
+     1. 不修改任何 DOM 结构、不改 id/class 名、不改 JS。
+        本文件只重定义视觉表现，全部选择器沿用既有钩子。
+     2. 所有颜色必须来自令牌，禁止硬编码色值。
+     3. 正文对比度 ≥ 4.5:1（WCAG AA），大字/图形 ≥ 3:1。
+     4. 深色为主，浅色为辅；在 PIXI 动态画面上需保证可读。
+
+   加载顺序：必须位于 utatap.css 之后、style.css 之前或之后均可，
+   但需在同源层（sp/css/common.css → css/utatap.css）之后加载。
+
+   ------------------------------------------------------------
+   【为什么不去改 shared/sp/css/common.css】
+   common.css 是 YUI 3.18.1 的 cssreset 压缩产物（BSD 许可，第三方库）。
+   它遗留了三处裸值，会被本文件继承：
+     1. html{background:#FFF} / body{background:#fff}
+     2. a:link,a:visited{color:#000} / a:hover{color:#969696}
+     3. .default,body,html{letter-spacing:.2rem}  ← 全局继承，是最危险的一条
+   直接改第三方库文件的风险：一旦升级/替换 YUI，这层修复全部丢失，
+   且属于「修改 vendor 代码」，不在本项目可维护范围内。
+   因此本文件在「2. 基础重置」中用同优先级的 html / body / a 选择器
+   接管这些遗留值 —— 这是 CSS 层级的正常用法，不侵入 vendor。
+   ============================================================ */
+
+/* ============================================================
+   1. 设计令牌（Design Tokens）
+   ============================================================ */
+:root {
+  /* ---------- 1.1 品牌主色：海蓝 ----------
+     沿用原项目 #8cc 的海蓝基因，但重新组织为完整色阶。
+     浅色系（--brand-100~300）用于背景与装饰；
+     深色系（--brand-600~800）用于文字与高对比场景。 */
+  --brand-50:  #eef7fb;   /* 最浅：分区底、hover 底 */
+  --brand-100: #d6ecf5;   /* 浅：卡片底 */
+  --brand-200: #b3dced;   /* 中浅：边框、分割线 */
+  --brand-300: #8cc8e0;   /* 品牌主色（承接原 #8cc 观感） */
+  --brand-400: #5fb0d0;   /* 中：图标、装饰 */
+  --brand-500: #3d94bb;   /* 主交互色 */
+  --brand-600: #2b769b;   /* 深：主按钮底 */
+  --brand-700: #205c7b;   /* 更深：按钮按下 */
+  --brand-800: #16455c;   /* 最深：深色面板底 */
+  --brand-900: #0e2f3f;   /* 极深：页面底色 */
+
+  /* ---------- 1.2 中性色：石板灰 ----------
+     用于文字与描边，提供从纯白到近黑的完整灰阶。 */
+  --slate-50:  #f7fafc;
+  --slate-100: #edf2f6;
+  --slate-200: #dde5ec;
+  --slate-300: #c2ced9;
+  --slate-400: #94a5b4;
+  --slate-500: #6b7c8b;
+  --slate-600: #4d5c69;
+  --slate-700: #384653;
+  --slate-800: #26323d;
+  --slate-900: #151d25;
+
+  /* ---------- 1.3 语义色 ----------
+     每个语义色都配 -text（前景）与 -bg（底）两档，
+     保证「色块上的文字」也有足够对比度。 */
+  --success:      #2fb87a;
+  --success-text: #0d5c3c;   /* 在 --success-bg 上对比 ≥ 4.6:1 */
+  --success-bg:   #d9f5e8;
+
+  --warning:      #e09420;
+  --warning-text: #6b4304;
+  --warning-bg:   #fdf0d8;
+
+  --danger:       #e2505f;
+  --danger-text:  #7a1622;
+  --danger-bg:    #fce0e3;
+
+  --info:         var(--brand-500);
+  --info-text:    #0e3d55;
+  --info-bg:      #dcf0f8;
+
+  /* ---------- 1.4 表面（背景层级） ----------
+     四层表面制造纵深：页面 → 面板 → 卡片 → 悬浮。 */
+  --surface-page:    var(--brand-900);   /* 页面最底 */
+  --surface-panel:   var(--brand-800);   /* 面板 */
+  --surface-raised:  #1d5069;           /* 面板内卡片（比面板亮一档） */
+  --surface-overlay: #0a2532;           /* 弹层（最深，突出层级） */
+  --surface-inset:   #0a2a38;           /* 内嵌区（波形底、进度槽） */
+  --surface-hover:   #25617c;           /* 悬停态 */
+  --surface-active:  #1a4a61;           /* 按下态 */
+
+  /* ---------- 1.5 前景（文字层级） ---------- */
+  --text-primary:   #f2f9fc;   /* 标题/主要文字，对 --surface-panel ≈ 12:1 */
+  --text-secondary: #cfe3ee;   /* 次要说明，对 --surface-raised ≈ 6.6:1 */
+  /* muted 必须仍达 AA：--text-muted 会用于 .status-bar__text--muted 等
+     叠在 surface-raised 上的场景，原 #85a8ba 仅 3.46:1，故上调至 #a8c4d4。 */
+  --text-muted:     #a8c4d4;   /* 弱化/占位，对 --surface-raised ≈ 5.4:1 */
+  --text-inverse:   var(--brand-900);  /* 反白文字（用于浅色按钮底） */
+  --text-on-accent: #ffffff;   /* 品牌色块上的文字 */
+
+  /* ---------- 1.6 描边与分隔 ---------- */
+  --border-subtle:  rgba(200, 224, 236, 0.16);
+  --border-default: rgba(200, 224, 236, 0.32);
+  --border-strong:  rgba(200, 224, 236, 0.52);
+  --border-accent:  var(--brand-400);
+
+  /* ---------- 1.7 字体层级 ----------
+     7 级，覆盖从页面主标题到角标的全部场景。
+     数值同时适配桌面与移动（移动端由媒体查询整体下调）。 */
+  --font-display: 700 2.25rem/1.2   var(--font-family);  /* 页面主标题 */
+  --font-title:   700 1.5rem/1.3    var(--font-family);  /* 区块标题 */
+  --font-heading: 600 1.125rem/1.4  var(--font-family);  /* 卡片/弹层标题 */
+  --font-body:    400 1rem/1.6      var(--font-family);  /* 正文 */
+  --font-label:   500 0.875rem/1.5 var(--font-family);  /* 标签/按钮 */
+  --font-caption: 400 0.8125rem/1.5 var(--font-family); /* 辅助说明 */
+  --font-micro:   500 0.75rem/1.4  var(--font-family);  /* 徽章/角标 */
+
+  /* 字体族：系统栈，无网络依赖 */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+                 "Helvetica Neue", Arial, sans-serif;
+  /* 等宽字体：用于编号、时长、代码类信息 */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+               Consolas, "Liberation Mono", monospace;
+
+  /* 字距 */
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-wider:  0.12em;
+
+  /* ---------- 1.8 间距刻度 ----------
+     4px 基准的 8 级刻度。所有 margin/padding/gap 只允许用这些值。 */
+  --space-0: 0;          /* 0   */
+  --space-1: 4px;        /* 4   元素内微间距 */
+  --space-2: 8px;        /* 8   标签与内容 */
+  --space-3: 12px;       /* 12  组件内边距（小） */
+  --space-4: 16px;       /* 16  组件内边距（中） */
+  --space-5: 24px;       /* 24  组件之间 */
+  --space-6: 32px;       /* 32  区块之间 */
+  --space-7: 48px;       /* 48  区块大间隔 */
+  --space-8: 64px;       /* 64  页面级留白 */
+
+  /* ---------- 1.9 圆角 ----------
+     4 级圆角，覆盖从标签到面板的全部容器。 */
+  --radius-xs:   2px;    /* 徽章、小色块 */
+  --radius-icon: 1px;    /* CSS 绘制的微图标（房屋），再小就是方块了 */
+  --radius-sm:   4px;    /* 按钮、输入框 */
+  --radius-md:   8px;    /* 卡片 */
+  --radius-lg:   14px;   /* 面板 */
+  --radius-xl:   20px;   /* 弹层 */
+  --radius-full: 999px;  /* 胶囊（进度条、状态点） */
+
+  /* ---------- 1.10 阴影 ----------
+     4 级：静态卡片 → 悬停 → 面板 → 弹层。
+     均使用多层叠加，模拟真实环境光遮蔽。
+     阴影色统一走 1.19 的 --shadow-color-*，此处只描述几何。 */
+  --shadow-xs: 0 1px 2px var(--shadow-color-xs);
+  --shadow-sm: 0 2px 6px var(--shadow-color-sm);
+  --shadow-md: 0 6px 18px var(--shadow-color-md);
+  --shadow-lg: 0 18px 48px var(--shadow-color-lg);
+  /* 品牌色辉光：用于主按钮与选中态 */
+  --shadow-glow: 0 0 0 1px var(--brand-400),
+                 0 4px 14px var(--brand-glow);
+
+  /* ---------- 1.11 动效 ---------- */
+  --duration-fast:   120ms;
+  --duration-base:   200ms;
+  --duration-slow:   320ms;
+  --ease-out:      cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------- 1.12 z-index 分层 ----------
+     统一管理，禁止在业务样式里写裸 z-index。 */
+  --z-base:      0;
+  --z-canvas:    1;    /* PIXI 画布 */
+  --z-content:   100;  /* 场景文字层 */
+  --z-float:     900;  /* 遮罩（选择/关于面板的 backdrop） */
+  --z-panel:     1000; /* 面板（歌姬选择、关于） */
+  --z-sheet:     1100; /* 录音弹层 sheet */
+  --z-modal:     1200; /* 模态确认框 modal —— 必须 > sheet，否则会被压住点不到 */
+  --z-toast:     1300; /* 轻提示 toast —— 最高，跨层提示不被遮挡 */
+  --z-pixel:     200;  /* 像素首页覆盖层（home-overlay.js 以内联 z-index:200 注入） */
+
+  /* ---------- 1.13 遮罩（scrim） ----------
+     收口全项目的 rgba(0,0,0,0.x) / rgba(5,18,26,0.x) 纯黑系半透明。
+     分三档，语义固定，禁止在业务样式里现写 rgba。 */
+  --scrim-color:    rgb(5 18 26);        /* 遮罩基色：深蓝黑，比纯黑更贴品牌 */
+  --scrim-soft:     rgb(5 18 26 / 0.46); /* 最轻：下层内容仍可辨 */
+  --scrim-base:     rgb(5 18 26 / 0.68); /* 标准：面板 backdrop */
+  --scrim-strong:   rgb(5 18 26 / 0.72); /* 弹层 sheet / modal 遮罩 */
+  --scrim-heavy:    rgb(5 18 26 / 0.88); /* 最重：需完全聚焦单一任务时 */
+
+  /* ---------- 1.14 玻璃层（半透明浮起面板） ----------
+     叠在 PIXI 动态画面上的浮层统一用这组，保证一致的通透度。 */
+  --glass-thin:     rgb(10 37 50 / 0.70); /* 最薄：贴边小按钮 */
+  --glass-base:     rgb(10 37 50 / 0.72); /* 底部提示条、演奏态导航 */
+  --glass-thick:    rgb(10 37 50 / 0.82); /* 加载态胶囊 */
+  --glass-header:   rgb(14 47 63 / 0.94); /* 顶栏玻璃，最实 */
+  --glass-hero-a:   rgb(14 47 63 / 0.86); /* 首屏玻璃渐变 - 上 */
+  --glass-hero-b:   rgb(10 37 50 / 0.92); /* 首屏玻璃渐变 - 下 */
+  --glass-topbar-a: rgb(22 69 92 / 0.96); /* 自定义页顶栏 - 上 */
+  --glass-topbar-b: rgb(14 47 63 / 0.92); /* 自定义页顶栏 - 下 */
+  --glass-blur-sm:  3px;                  /* 遮罩模糊 */
+  --glass-blur-md:  6px;                  /* 小浮层模糊 */
+  --glass-blur-lg:  10px;                 /* 面板模糊 */
+
+  /* ---------- 1.15 品牌辉光与描边透明变体 ----------
+     品牌色的半透明档位，用于 chip 底、hover 底、focus 环。 */
+  --brand-veil-08:  rgb(61 148 187 / 0.08);
+  --brand-veil-12:  rgb(61 148 187 / 0.12);
+  --brand-veil-14:  rgb(61 148 187 / 0.14);
+  --brand-veil-16:  rgb(61 148 187 / 0.16);
+  --brand-veil-20:  rgb(61 148 187 / 0.20);
+  --brand-veil-30:  rgb(61 148 187 / 0.30);
+  --brand-veil-40:  rgb(61 148 187 / 0.40);
+  --brand-glow:     rgb(61 148 187 / 0.34); /* 品牌辉光阴影色 */
+  --brand-glow-text:rgb(61 148 187 / 0.40); /* 品牌文字辉光 */
+
+  /* ---------- 1.16 前景透明变体 ----------
+     白色/前景色叠在实心块上的低透明档位。 */
+  --fg-veil-18:     rgb(255 255 255 / 0.18);
+  --fg-veil-35:     rgb(255 255 255 / 0.35);
+
+  /* ---------- 1.17 语义色软态（soft） ----------
+     徽章底、chip 底、提示条底统一走这组。
+     【为何不用 color-mix()】本项目是纯静态 H5，需覆盖 iOS Safari 15 以前的
+     WebView 与各类国产内核浏览器；color-mix() 在这些环境直接失效，
+     会导致背景色整体丢失（元素变透明）。改用预定义的实值令牌，
+     兼容性等同普通十六进制色值，且色值可被设计侧直接审阅。 */
+  --success-soft:   rgb(47 184 122 / 0.10); /* 卡片成功态底 */
+  --success-chip:   rgb(47 184 122 / 0.16); /* 徽章底 */
+  --success-edge:   rgb(47 184 122 / 0.40); /* 成功态描边 */
+  --warning-soft:   rgb(224 148 32 / 0.12);
+  --warning-chip:   rgb(224 148 32 / 0.18);
+  --danger-soft:    rgb(226 80 95 / 0.10);  /* 危险按钮底 */
+  --danger-chip:    rgb(226 80 95 / 0.16);
+  --danger-edge:    rgb(226 80 95 / 0.50);  /* 危险按钮描边 */
+  --danger-glow:    rgb(226 80 95 / 0.34);  /* 危险态辉光 */
+  --danger-text-on: #ff9aa3;                /* 深底上的危险文字（对比 7.86:1） */
+  --info-soft:      rgb(61 148 187 / 0.12);
+  --info-chip:      rgb(61 148 187 / 0.16);
+
+  /* ---------- 1.18 轨道与进度槽 ---------- */
+  --track-bg:       rgb(184 212 226 / 0.22); /* 加载进度条空槽 */
+  --track-bg-soft:  rgb(184 212 226 / 0.10); /* 标签类浅底 */
+  --wave-bg:        rgb(20 60 78 / 0.32);    /* 波形缩略图底 */
+
+  /* ---------- 1.19 文字投影（叠在 PIXI 画布上的可读性保障） ----------
+     统一收集裸 rgba(0,0,0,x)，避免各处现写。 */
+  --text-shadow-canvas: 0 1px 2px rgb(0 0 0 / 0.85),
+                        0 0 12px rgb(0 0 0 / 0.55);
+  --text-shadow-soft:   0 1px 3px rgb(0 0 0 / 0.70);
+  --text-shadow-weaker: 0 1px 3px rgb(0 0 0 / 0.60);
+  --focus-ring-shadow:  0 0 0 3px var(--brand-veil-20);
+
+  /* ---------- 1.20 阴影基色 ----------
+     把阴影里的纯黑抽出，令 --shadow-* 只描述「几何」，颜色只此一处。 */
+  --shadow-color-xs: rgb(0 0 0 / 0.24);
+  --shadow-color-sm: rgb(0 0 0 / 0.28);
+  --shadow-color-md: rgb(0 0 0 / 0.34);
+  --shadow-color-lg: rgb(0 0 0 / 0.46);
+
+  /* ---------- 1.21 平台环境令牌 ----------
+     安全区高度。定义在此处（而非仅 custom/css/style.css），
+     因为 design-system.css 自身也依赖它，首页不加载 style.css 时
+     不应出现悬空引用。 */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+
+  /* ---------- 1.22 响应式断点刻度 ----------
+     【为何 CSS 里是注释而不是变量】
+     @media 查询条件不能使用 var()（CSS 规范明确不支持），
+     所以断点值必须写字面量。本处的令牌用于：
+       1) 文档化唯一的断点口径；
+       2) 供 JS 读取做同样的判断，避免两处各写一套魔数。
+     三个值即全站唯一允许出现的断点，禁止再出现 640 / 420 等。 */
+  --bp-lg: 1280px; /* 大屏 / 桌面宽屏 */
+  --bp-md: 768px;  /* 平板 */
+  --bp-sm: 390px;  /* 手机 */
+}
+
+/* ============================================================
+   1b. 兼容桥接层（legacy aliases）
+   ------------------------------------------------------------
+   背景：custom/css/style.css 前 630 行（旧代码）大量直接引用
+   --fg / --ink / --bg / --dur / --radius / --ok / --warn。
+   这些名字与本文件的真实令牌同名会造成两类维护事故：
+     A. 同名两处定义，开发者改错地方不生效；
+     B. --danger: var(--danger) 这类自引用。
+   解决：真实令牌一律用语义全名（--success / --warning / --danger
+   本就是真实令牌），桥接别名统一收敛到这一处、用 legacy- 前缀区分，
+   旧代码那侧只保留一处 :root 定义，不再二次覆盖。
+   注意：--fg / --ink / --bg / --dur / --radius 由 custom/css/style.css
+   统一定义在文件头部（单源），本文件不再重复声明这五个，避免跨文件打架。
+   ============================================================ */
+
+/* ============================================================
+   2. 基础重置
+   ------------------------------------------------------------
+   本章同时承担一项额外职责：接管 YUI 3.18.1 reset
+   （shared/sp/css/common.css）遗留的裸值。该文件是第三方库，
+   不做修改（理由见文件顶部），改由这里用同优先级选择器覆盖：
+     · html / body 的 #FFF、#fff 背景
+     · a:link / a:visited 的 #000、a:hover 的 #969696
+     · body 的全局 letter-spacing:.2rem  ← 必须显式归零，
+       否则会继承给每一个未声明字距的元素，与设计系统的 tracking 体系冲突。
+   ============================================================ */
+html,
+body {
+  /* 用深色而非原 #8cc：白字对比度从 2.3:1 提升到 12:1 */
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 16px;
+  line-height: 1.6;
+  /* 接管 YUI 的 letter-spacing:.2rem：全站默认字距归零，
+     需要加宽的元素一律显式声明 --tracking-*，不再被动继承。 */
+  letter-spacing: var(--tracking-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 接管 YUI：链接默认色为 #000 / hover 为 #969696，在深底上不可读 */
+a:link,
+a:visited {
+  color: var(--text-primary);
+}
+
+a:hover,
+a:active {
+  color: var(--brand-300);
+}
+
+/* box-sizing 统一，避免子元素 padding 撑破面板 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 统一焦点可见性：键盘可达，且不被 outline 截断 */
+:focus-visible {
+  outline: 2px solid var(--brand-400);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* 尊重系统减弱动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   3. 链接与文字链
+   ------------------------------------------------------------
+   原设计：白字 + 虚线下划线，hover 时整体闪烁（animover）。
+   问题：闪烁导致可读性骤降，且没有按下/焦点态。
+   新设计：保留虚线（品牌特征），改为颜色与位移的温和过渡。
+   ============================================================ */
+#select a,
+#about a,
+#bt_about a,
+#bt_backtrack a,
+#bt_feedback a,
+#bt_start a,
+#bt_select a,
+#bt_custom a {
+  color: var(--text-primary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border-strong);
+  padding-bottom: 2px;
+  transition:
+    color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out);
+}
+
+#select a:hover,
+#about a:hover,
+#bt_about a:hover,
+#bt_backtrack a:hover,
+#bt_feedback a:hover,
+#bt_start a:hover,
+#bt_select a:hover,
+#bt_custom a:hover {
+  color: var(--brand-300);
+  border-bottom-color: var(--brand-300);
+  background-color: var(--brand-500); /* 替代原 animover 闪烁 */
+  animation: none;                    /* 明确禁用旧的闪烁动画 */
+}
+
+/* 通用链接 hover：同样用底色代替闪烁 */
+a:hover {
+  animation: none;
+  color: var(--brand-300);
+}
+
+/* ============================================================
+   4. 首屏（scene_top）— 品牌门面
+   ============================================================ */
+#scene_top {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-content);
+  width: min(92%, 560px);
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+  user-select: none;
+  /* 半透明深色玻璃面板：既能托住文字，又不完全挡住像素画布 */
+  background: linear-gradient(
+    180deg,
+    var(--glass-hero-a) 0%,
+    var(--glass-hero-b) 100%
+  );
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+}
+
+/* 主标题：渐变文字，强化品牌 */
+#scene_top h1 {
+  font: var(--font-display);
+  letter-spacing: var(--tracking-wider);
+  margin: 0 0 var(--space-5);
+  background: linear-gradient(180deg, var(--text-on-accent) 0%, var(--brand-300) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--text-primary); /* 降级：不支持 background-clip 时仍可见 */
+}
+
+/* 动作按钮组：改为卡片式按钮，主次分明 */
+#bt_start,
+#bt_select,
+#bt_custom,
+#bt_about {
+  margin: 0 auto var(--space-3);
+  max-width: 320px;
+}
+
+#bt_start a,
+#bt_select a,
+#bt_custom a,
+#bt_about a {
+  display: block;
+  padding: var(--space-3) var(--space-4);
+  font: var(--font-label);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+#bt_start a:hover,
+#bt_select a:hover,
+#bt_custom a:hover,
+#bt_about a:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-accent);
+  color: var(--text-on-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+#bt_start a:active,
+#bt_select a:active,
+#bt_custom a:active,
+#bt_about a:active {
+  transform: translateY(0);
+  background: var(--surface-active);
+  box-shadow: var(--shadow-xs);
+}
+
+/* 「开始」是首要动作，用品牌色强调 */
+#bt_start a {
+  background: var(--brand-600);
+  border-color: var(--brand-400);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+}
+
+#bt_start a:hover {
+  background: var(--brand-500);
+  box-shadow: var(--shadow-glow);
+}
+
+/* 提示语 */
+#scene_top .attention {
+  font: var(--font-caption);
+  color: var(--text-secondary);
+  margin: var(--space-4) 0 0;
+  letter-spacing: var(--tracking-normal);
+}
+
+#scene_top .tit {
+  font: var(--font-label);
+  color: var(--text-muted);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+/* 社交图标 */
+#scene_top .sns {
+  display: inline-block;
+  margin: 0 var(--space-2);
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-spring);
+}
+#scene_top .sns:hover { transform: translateY(-3px) scale(1.06); }
+#scene_top .sns img { width: 36px; border-radius: var(--radius-sm); }
+
+/* 不支持提示 */
+#ng .atten {
+  font: var(--font-caption);
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.7;
+}
+
+/* ============================================================
+   5. 主场景文字层（scene_main）
+   ------------------------------------------------------------
+   这些文字直接叠在 PIXI 动态画面上，必须自带可读性保障：
+   用内阴影式文字投影 + 半透明胶囊底，而不是裸露白字。
+   ============================================================ */
+#scene_main,
+#scene_main .attention {
+  pointer-events: none;
+}
+
+#scene_main {
+  position: absolute;
+  top: auto;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-content);
+  width: auto;
+  max-width: 92%;
+  text-align: center;
+}
+
+#scene_main .set {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--glass-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(var(--glass-blur-md));
+  -webkit-backdrop-filter: blur(var(--glass-blur-md));
+  box-shadow: var(--shadow-md);
+}
+
+#scene_main .attention {
+  font: var(--font-caption);
+  color: var(--text-secondary);
+  margin: 0;
+  letter-spacing: var(--tracking-normal);
+  /* 双层文字投影：亮画布与暗画布下都可读 */
+  text-shadow: var(--text-shadow-soft);
+}
+
+#bt_backtrack,
+#bt_feedback {
+  font: var(--font-micro);
+  margin: 0;
+  pointer-events: auto;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--brand-veil-16);
+  border: 1px solid var(--border-subtle);
+  transition: background-color var(--duration-base) var(--ease-out);
+}
+
+#bt_backtrack:hover,
+#bt_feedback:hover {
+  background: var(--brand-veil-30);
+}
+
+#bt_backtrack a,
+#bt_feedback a {
+  color: var(--text-secondary);
+  border-bottom-color: transparent;
+  text-shadow: var(--text-shadow-weaker);
+}
+
+#bt_backtrack a:hover,
+#bt_feedback a:hover {
+  color: var(--text-on-accent);
+  background: transparent;
+}
+
+/* 文字投影工具类：用于任何叠在画布上的裸文字 */
+.on-canvas-text {
+  text-shadow: var(--text-shadow-canvas);
+}
+
+/* ============================================================
+   6. 加载态
+   ============================================================ */
+#scene_loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-content);
+  width: 100%;
+  text-align: center;
+  user-select: none;
+}
+
+#scene_loading p {
+  display: inline-block;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  font: var(--font-label);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-wider);
+  background: var(--glass-thick);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* 进度条：改为品牌色渐变 + 圆角端点 */
+#scene_loading hr {
+  width: 0;
+  max-width: 320px;
+  height: 4px;
+  margin: 0 auto;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--track-bg);
+  overflow: hidden;
+}
+
+/* ============================================================
+   7. 浮层按钮（返回 / 全屏）
+   ============================================================ */
+#bt_back,
+#bt_fs {
+  position: absolute;
+  z-index: var(--z-content);
+  top: var(--space-4);
+  left: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  font: var(--font-micro);
+  color: var(--text-primary);
+  background: var(--glass-thin);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+#bt_fs {
+  left: auto;
+  right: var(--space-4);
+}
+
+#bt_back:hover,
+#bt_fs:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-accent);
+  animation: none;  /* 禁用旧的闪烁 */
+}
+
+/* ============================================================
+   8. 遮罩
+   ------------------------------------------------------------
+   原为白色 50% 透明，在深色底上会整体提亮、破坏层次。
+   改为深色遮罩 + 轻微模糊，聚焦到面板。
+   ============================================================ */
+#select_cover,
+#about_cover {
+  position: fixed;
+  top: 0;
+  z-index: var(--z-float);
+  background: var(--scrim-base);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+}
+
+/* ============================================================
+   9. 面板（选择 / 关于）
+   ============================================================ */
+#select,
+#about {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-panel);
+  display: none;
+  width: min(94vw, 680px);
+  max-height: 88vh;
+  overflow-y: auto;
+  color: var(--text-primary);
+  /* ---- JS 动态配色的接管（不可改造项，详见 DESIGN-SPEC-01）----
+     js/main.js:1961-1962 在每次 play() 时执行
+       $("#about").css("background-color", "#" + c.toString(16))
+       $("#select").css("background-color", "#" + c.toString(16))
+     其中 c 取自 colorMap（随歌姬/歌曲变化的运行时色值）。
+     这是**内联样式**，优先级高于任何选择器规则，唯一能压制它的手段
+     是 !important —— 属于 CSS 唯一能跨过内联样式的手段。
+     实际上方的 background-image 渐变已是不透明色，本就会盖住
+     background-color；此处显式声明 !important 是为了让「令牌说了算」
+     成为确定行为，而不是依赖「渐变恰好不透明」这一偶然。
+     规则：改 JS 禁止；如需恢复动态配色，应由设计侧提供
+     --panel-tint-a / --panel-tint-b 令牌，而不是放开内联色值。 */
+  background-color: var(--surface-panel) !important;
+  background-image: linear-gradient(
+    180deg,
+    var(--surface-panel) 0%,
+    var(--surface-overlay) 100%
+  );
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  letter-spacing: var(--tracking-normal);
+  line-height: 1.6;
+  /* 像素风滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-500) transparent;
+}
+
+#select::-webkit-scrollbar,
+#about::-webkit-scrollbar { width: 8px; }
+#select::-webkit-scrollbar-track,
+#about::-webkit-scrollbar-track { background: transparent; }
+#select::-webkit-scrollbar-thumb,
+#about::-webkit-scrollbar-thumb {
+  background: var(--brand-500);
+  border-radius: var(--radius-full);
+}
+
+#select_in,
+#about_in {
+  padding: var(--space-6) var(--space-5);
+}
+
+/* 关闭按钮：改为独立圆形按钮 */
+#bt_close {
+  display: block;
+  margin: 0 auto var(--space-5);
+  width: 36px;
+  height: 36px;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    color var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-spring);
+}
+
+#bt_close:hover {
+  color: var(--text-on-accent);
+  background: var(--danger);
+  border-color: var(--danger);
+  transform: rotate(90deg);
+  animation: none;
+}
+
+#select .close,
+#about .close { margin-bottom: 0; }
+
+#select .con,
+#about .con {
+  font: var(--font-heading);
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-4);
+  text-align: center;
+  letter-spacing: var(--tracking-normal);  /* 修正原 -.5rem 负字距 */
+}
+
+#select .link,
+#about .link {
+  font: var(--font-caption);
+  color: var(--text-secondary);
+  margin: var(--space-4) 0 0;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* ============================================================
+   10. 双栏分割（歌姬 / 音轨）
+   ============================================================ */
+.split {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.split > hr {
+  margin: 0;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  align-self: stretch;
+}
+
+.split > div {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+}
+
+/* ============================================================
+   11. 选项行（歌姬 / 音轨列表）
+   ============================================================ */
+.option,
+.custom {
+  display: flex;
+  align-items: center;
+  height: auto;
+  min-height: 40px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-base) var(--ease-out);
+}
+
+.option:hover,
+.custom:hover {
+  background: var(--surface-raised);
+}
+
+.option > input { display: none; }
+
+.option > label,
+.custom > label {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font: var(--font-body);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+.option > label:hover,
+.custom > label:hover {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  background: var(--surface-hover);
+}
+
+/* 选中态：原为纯白底黑字，与整体割裂。
+   改为品牌色底 + 白字 + 辉光，保持强调力且不突兀。 */
+.selected {
+  background: var(--brand-600) !important;
+  color: var(--text-on-accent) !important;
+  font-weight: 600;
+  border-color: var(--brand-400) !important;
+  box-shadow: var(--shadow-glow);
+}
+
+.option > label.selected:hover,
+.custom > label.selected:hover {
+  background: var(--brand-500) !important;
+  color: var(--text-on-accent) !important;
+}
+
+/* 自定义上传区 */
+.custom_dash {
+  border: none;
+  border-top: 1px dashed var(--border-default);
+  margin: var(--space-3) 0;
+}
+
+.custom > input[type="file"] { display: none; }
+
+.custom > label {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  border-style: dashed;
+  border-color: var(--border-subtle);
+}
+
+/* 面板底部贡献说明 */
+#select_in > p:not(.close):not(.con) {
+  font: var(--font-caption);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.7;
+  margin-top: var(--space-4);
+}
+
+/* ============================================================
+   12. 响应式：平板及以下（断点口径见 1.22）
+   ============================================================ */
+@media (max-width: 768px) {
+  #scene_top {
+    width: min(94%, 480px);
+    padding: var(--space-5) var(--space-4);
+  }
+
+  #scene_top h1 {
+    font-size: 1.75rem;
+    letter-spacing: var(--tracking-wide);
+    margin-bottom: var(--space-4);
+  }
+
+  #bt_start a,
+  #bt_select a,
+  #bt_custom a,
+  #bt_about a {
+    padding: var(--space-3);
+    font-size: 0.9375rem;
+  }
+
+  #scene_top .attention {
+    font-size: 0.75rem;
+    margin-top: var(--space-3);
+  }
+
+  #scene_top .sns { margin: 0 var(--space-1); }
+  #scene_top .sns img { width: 28px; }
+
+  #ng .atten {
+    font-size: 0.75rem;
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+
+  #select,
+  #about {
+    width: 96vw;
+    max-height: 92vh;
+  }
+
+  #select_in,
+  #about_in {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  #select .con,
+  #select .link,
+  #about .con,
+  #about .link,
+  #scene_loading p {
+    font-size: 0.875rem;
+  }
+
+  .split {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .split > hr {
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+    width: 100%;
+  }
+
+  #bt_back,
+  #bt_fs {
+    top: var(--space-3);
+    font-size: 0.6875rem;
+    padding: var(--space-1) var(--space-2);
+  }
+  #bt_back { left: var(--space-3); }
+  #bt_fs { right: var(--space-3); }
+
+  #scene_main { bottom: var(--space-4); }
+  #scene_main .set { padding: var(--space-1) var(--space-3); }
+  #bt_backtrack,
+  #bt_feedback { font-size: 0.6875rem; }
+}
+
+/* ============================================================
+   13. 顶部导航栏（#topbar）
+   ------------------------------------------------------------
+   需求：「返回首页」不再是独立浮层按钮，而是与站名融合为同一个导航元素。
+
+   统一规范：
+     - 配色：文字用 --text-primary / --text-secondary；悬停用 --brand-300
+     - 字号：站名 --font-title；导航项 --font-label
+     - 间距：gap 用 --space-3（12px），内边距用 --space-2 / --space-4
+     - 圆角：--radius-sm；描边：--border-subtle
+     - 状态：默认 / 悬停 / 点击 / 禁用 四态齐全
+     - 层级：与标题同高，垂直居中，跨页面保持一致
+   ============================================================ */
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  background: var(--brand-veil-12);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+}
+
+#topbar .topbar__brand {
+  font: var(--font-title);
+  letter-spacing: var(--tracking-wider);
+  margin: 0;
+  line-height: 1.2;
+  background: linear-gradient(180deg, var(--text-on-accent) 0%, var(--brand-300) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--text-primary); /* 不支持 background-clip 时降级 */
+}
+
+/* ---------- 返回首页：与站名同级的导航项 ---------- */
+#nav_home {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font: var(--font-label);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    color var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+/* 小房子图标：用 CSS 画，避免额外图片请求 */
+.nav-home__icon {
+  position: relative;
+  display: inline-block;
+  width: 11px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-top: none;
+  border-radius: var(--radius-icon);
+  flex: none;
+}
+.nav-home__icon::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 8px;
+  height: 8px;
+  border-left: 1.5px solid currentColor;
+  border-top: 1.5px solid currentColor;
+  transform: translateX(-50%) rotate(45deg);
+  transform-origin: center;
+  border-radius: var(--radius-icon);
+}
+
+/* 默认态：与站名同色系，不喧宾夺主 */
+#nav_home:hover {
+  color: var(--text-on-accent);
+  background: var(--brand-600);
+  border-color: var(--border-accent);
+  transform: translateY(-1px);
+}
+
+/* 点击态：下沉 + 去掉辉光，避免"粘住"的错觉 */
+#nav_home:active {
+  transform: translateY(0);
+  background: var(--brand-700);
+  border-color: var(--brand-500);
+}
+
+/* 焦点态：键盘可达 */
+#nav_home:focus-visible {
+  outline: 2px solid var(--brand-300);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* 禁用态：已在首页时，「首页」导航项无意义
+
+   禁用感由「虚线描边 + 无指针事件 + 默认光标 + 无悬停反馈」表达，
+   刻意不用 opacity 压暗——实测 opacity 0.55/0.6 会把文字实降到约
+   2.6:1（远低于 AA 4.5:1），属于「靠看不清表达禁用」。
+   文字取 --text-secondary：对玻璃面板实测 ≈ 6.9:1，留足 AA 余量。 */
+#nav_home[disabled],
+#nav_home.is-disabled {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: var(--border-subtle);
+  border-style: dashed;
+  cursor: default;
+  pointer-events: none;
+  transform: none;
+}
+
+/* ---------- 原独立按钮：视觉已并入导航栏，仅保留定位锚点 ---------- */
+#bt_back {
+  /* 不再单独显示；main.js 仍会对它做显隐控制，故保持在 DOM 中 */
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  #topbar {
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  #topbar .topbar__brand {
+    font-size: 1.25rem;
+    letter-spacing: var(--tracking-wide);
+  }
+  #nav_home {
+    font-size: 0.8125rem;
+    padding: var(--space-1) var(--space-2);
+  }
+  .nav-home__text { /* 窄屏只留图标，省空间 */
+    /* 保留文字：小屏也保持可读性，仅缩小间距 */
+  }
+}
+
+/* ============================================================
+   14. 演奏态的导航栏：只保留顶部导航，隐藏其余入口
+   ------------------------------------------------------------
+   需求：「首页」导航项在首页与其他页面（演奏 / 选择 / 关于）切换时
+   始终可见、样式一致。
+
+   实现：#scene_top 加 .is-playmode 后，只显示 #topbar，
+   其余（四个入口按钮、提示语）隐藏。这样演奏中仍能一键回首页，
+   且导航栏外观与首页完全一致（同一套令牌，无第二套样式）。
+   ============================================================ */
+#scene_top.is-playmode {
+  top: var(--space-4);
+  transform: none;
+  /* 演奏中只留导航条：窄一些、低一些，不遮挡 PIXI 画面 */
+  width: auto;
+  min-width: 220px;
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  background: var(--glass-base);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+}
+
+#scene_top.is-playmode #topbar {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  gap: var(--space-3);
+}
+
+#scene_top.is-playmode .topbar__brand {
+  font-size: 1.125rem;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* 演奏态隐藏全部入口与提示，只留导航 */
+#scene_top.is-playmode > *:not(#topbar) {
+  display: none !important;
+}
+
+/* 已在首页时，「首页」导航项置为禁用态
+   同上：不用 opacity，禁用差异交给虚线描边与无悬停反馈 */
+#scene_top.at-home #nav_home {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: var(--border-subtle);
+  border-style: dashed;
+  cursor: default;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  #scene_top.is-playmode {
+    top: var(--space-3);
+    min-width: 0;
+    padding: var(--space-1) var(--space-2);
+  }
+  #scene_top.is-playmode .topbar__brand { font-size: 1rem; }
+}
+
+/* ============================================================
+   16. 窄屏画布遮挡修正（P1-3）
+   ------------------------------------------------------------
+   现象：视口宽 511~959px 时，像素画布被首页面板 100% 盖住，
+        像素车站场景完全不可见（QA 实测 coveredPct=100）。
+
+   根因：画布尺寸由 home-overlay.js 的整数倍缩放决定
+        scale = max(1, floor(min(w/480, h/270)))。
+        视口 < 960px 时 scale 恒为 1，画布固定 480x270；
+        而此区间面板宽 480~560px ≥ 画布宽 480px，
+        且面板高 366~399px > 画布高 270px —— 面板在两轴都盖过画布。
+        （不可改 JS，故只能从 CSS 侧缓解。）
+
+   方案选择（已用 Playwright 实测 18 档视口对比）：
+     -仅收窄面板宽度：无效。面板比画布高，收窄只把 100% 降到 92%，
+       画面仍是两条细边（见 qa-p13-candidates.json 的 narrow440/narrow400）。
+     - 面板贴底对齐（本方案）：画布上半部分完整露出，
+       768x1024 遮挡率 100% → 11%，700x900 → 32%，且
+       18 档视口全部无横向滚动、四个入口按钮均完整在视口内、面板不溢出。
+
+   作用域限定 511~959px：
+     - ≥960px：画布放大到 960x540，面板 560px 本就不遮挡，维持原样；
+     - ≤510px：面板宽已小于画布宽（320px 档遮挡 63%），维持原样。
+   排除 .is-playmode：演奏态面板是贴顶的导航胶囊，必须保持 top 定位。
+   ============================================================ */
+@media (min-width: 511px) and (max-width: 959px) {
+  #scene_top:not(.is-playmode) {
+    top: auto;
+    bottom: 4%;
+    transform: translateX(-50%);
+  }
+}
+
+/* ============================================================
+   15. 演奏态收尾修正
+   ============================================================ */
+
+/* 独立的「全屏显示」按钮已并入导航体系，不再单独浮在右上角 */
+#bt_fs {
+  display: none !important;
+}
+
+/* 底部提示条：三个元素必须真正分开，不叠字。
+   之前 .attention 与两个开关都是块级 p，默认 margin 塌陷导致重叠，
+   这里显式改为 flex 布局并统一基线。 */
+#scene_main .set {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2) var(--space-3);
+  row-gap: var(--space-1);
+}
+
+#scene_main .set .attention {
+  margin: 0;
+  flex: 0 0 auto;
+  line-height: 1.4;
+  /* 提示语与右侧两个开关之间留足呼吸空间，避免末字贴住开关 */
+  padding-right: var(--space-3);
+  position: relative;
+}
+
+/* 提示语与开关之间的视觉分隔（细竖线，弱化不抢戏） */
+#scene_main .set .attention::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 60%;
+  background: var(--border-default);
+}
+
+#scene_main .set #bt_feedback,
+#scene_main .set #bt_backtrack {
+  margin: 0;
+  flex: 0 0 auto;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ============================================================
+   16. 模态确认框（.vc-modal）—— 层级与视觉接管
+   ------------------------------------------------------------
+   根因：.vc-modal 此前**完全没被视觉规范接管**，
+        仍是「z-index 未设（=auto→0）+ 白色 50% 遮罩 + 零圆角」。
+        而 .vc-sheet 已升到 z-index 1100，
+        于是「删除确认框」被压在录音弹层**下面**，
+        按钮点不到 → 用户感知为「悬浮窗无法消失 / 被强制常驻」。
+
+   修复要点：
+     1. 层级：新增 --z-modal（1200），必须 > --z-sheet(1100)；
+        同时 toast 提到 --z-toast(1300) 也在其上。
+     2. 遮罩由白色 50% 改为深色半透明 + 模糊，与 sheet 一致。
+     3. 面板统一圆角 / 阴影 / 字号 / 按钮样式。
+     4. 关闭时用 opacity + visibility 过渡，而不是硬切 display，
+        避免"闪一下消失"的割裂感（配合 JS 移除节点）。
+   ============================================================ */
+.vc-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  /* 关键：层级必须高于 .vc-sheet，否则会被压住无法交互 */
+  z-index: var(--z-modal);
+}
+
+.vc-modal.is-show {
+  display: block;
+  animation: vc-fade var(--duration-base) var(--ease-out);
+}
+
+.vc-modal__mask {
+  position: absolute;
+  inset: 0;
+  /* 遮罩在面板之下，不参与抢层；用令牌而非裸 0，保持层级可审计 */
+  z-index: var(--z-base);
+  background: var(--scrim-strong);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  cursor: pointer;
+}
+
+.vc-modal__panel {
+  position: relative;
+  /* 面板恒在遮罩之上；相对遮罩抬升一级 */
+  z-index: var(--z-canvas);
+  width: min(90vw, 380px);
+  margin: 12vh auto 0;
+  padding: var(--space-5);
+  background: linear-gradient(180deg,
+    var(--surface-panel) 0%,
+    var(--surface-overlay) 100%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  animation: vc-rise var(--duration-slow) var(--ease-out);
+}
+
+.vc-modal__title {
+  font: var(--font-heading);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3);
+  letter-spacing: var(--tracking-normal);
+}
+
+.vc-modal__msg {
+  font: var(--font-body);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-5);
+}
+
+/* 按钮：左右排布，主次分明（取消在左、危险操作在右） */
+.vc-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.vc-modal__actions .vc-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .vc-modal__panel {
+    width: 92vw;
+    margin-top: 18vh;
+    padding: var(--space-4);
+  }
+}
+
+/* ============================================================
+   17. 轻提示（.vc-toast）—— 层级与视觉接管
+   ------------------------------------------------------------
+   两个问题：
+     1. z-index 硬编码 1100，与 .vc-sheet 相同 → 提示可能被弹层压住；
+        改为令牌 --z-toast(1300)，保证任何层之上都能看到。
+     2. 配色用 --fg/--ink（白底黑字），在深色体系里非常刺眼；
+        改为深色面板 + 浅色文字 + 左侧语义色条。
+   ============================================================ */
+.vc-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(28px + var(--safe-b));
+  transform: translate(-50%, 12px);
+  z-index: var(--z-toast);
+  max-width: 82vw;
+  padding: var(--space-2) var(--space-4);
+  font: var(--font-caption);
+  line-height: 1.5;
+  letter-spacing: var(--tracking-normal);
+  color: var(--text-primary);
+  background: var(--glass-header);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--brand-400);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+  backdrop-filter: blur(var(--glass-blur-md));
+  -webkit-backdrop-filter: blur(var(--glass-blur-md));
+}
+
+.vc-toast.is-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.vc-toast--info    { border-left-color: var(--brand-400); }
+.vc-toast--success { border-left-color: var(--success); }
+.vc-toast--error   { border-left-color: var(--danger); }
+.vc-toast--warn    { border-left-color: var(--warning); }

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>我的声音也能成曲 · 自定义音频</title>
+<!-- 样式加载顺序（层叠契约，勿调整）：
+     1) ../shared/sp/css/common.css —— YUI 3.18.1 reset（第三方，不修改）
+     2) ../css/utatap.css —— 原项目基础样式（同源层）
+     3) ../css/design-system.css —— 统一设计令牌（必须晚于同源层）
+     4) css/style.css —— 本页组件样式，必须最后加载：
+        其 token 桥接（--bg/--fg/--ink 等）需在 design-system 之后声明才能取到值，
+        其「令牌对齐层」需最后生效才能覆盖前三层。 -->
+<link charset="UTF-8" href="../shared/sp/css/common.css" rel="stylesheet">
+<link charset="utf-8" href="../css/utatap.css" rel="stylesheet">
+<link rel="stylesheet" href="../css/design-system.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page page--customize">
+
+<header class="topbar">
+  <div class="topbar__title">
+    <a class="topbar__back" href="../index.html">＜返回</a>
+    <h1>自定义音频</h1>
+    <p>点击任一片段，录制或导入你的声音</p>
+    <p id="bankLabel" class="topbar__bank"></p>
+  </div>
+  <button id="btnRestoreAll" type="button" class="topbar__btn">恢复本歌姬默认</button>
+</header>
+
+<section class="status-bar">
+  <span class="status-bar__dot" aria-hidden="true"></span>
+  <span id="statusText" class="status-bar__text status-bar__text--muted">加载中…</span>
+</section>
+
+<main class="content">
+  <div class="flowbar">
+    <button id="btnFlowStart" type="button" class="vc-btn vc-btn--primary">开始顺序录制</button>
+    <button id="btnFlowStop" type="button" class="vc-btn vc-btn--ghost" hidden>退出顺序录制</button>
+    <span id="flowQueue" class="flowbar__queue" aria-live="polite"></span>
+  </div>
+  <ul id="clipList" class="clip-grid"></ul>
+</main>
+
+<!-- 录音弹层 -->
+<div id="sheet" class="vc-sheet" role="dialog" aria-modal="true">
+  <div class="vc-sheet__mask"></div>
+  <div class="vc-sheet__panel">
+    <div class="vc-sheet__handle" aria-hidden="true"></div>
+
+    <div class="vc-sheet__head">
+      <h2 id="sheetTitle" class="vc-sheet__title">片段名称</h2>
+      <button id="btnCloseSheet" type="button" class="vc-sheet__close" aria-label="关闭">×</button>
+    </div>
+    <p id="sheetProgress" class="vc-sheet__progress"></p>
+    <p id="sheetUsage" class="vc-sheet__usage">用途说明</p>
+
+    <!-- 大字提示：用户照着这个发声 -->
+    <div class="hintbox">
+      <span class="hintbox__label">请模仿这个声音</span>
+      <strong id="sheetHint" class="hintbox__text">哼哼哈哈</strong>
+      <span id="hintState" class="hintbox__state">点击录音，模仿提示发声</span>
+    </div>
+
+    <div class="recordbox">
+      <div class="recordbox__row">
+        <span id="recordTimer" class="recordbox__timer">0.0"</span>
+        <div class="level"><span id="levelFill" class="level__fill"></span></div>
+      </div>
+      <button id="btnRecord" type="button" class="vc-btn vc-btn--primary vc-btn--block">开始录音</button>
+    </div>
+
+    <!-- 导入音频：本地文件 / URL。导入与录音共用同一草稿槽，试听/保存/删除逻辑完全复用 -->
+    <div class="importbox">
+      <div class="importbox__row">
+        <button id="btnImportFile" type="button" class="vc-btn vc-btn--ghost">导入本地音频</button>
+        <input id="fileImport" type="file" accept="audio/*" hidden>
+      </div>
+      <div class="importbox__row">
+        <input id="importUrl" type="url" class="vc-input" placeholder="或粘贴音频 URL" autocomplete="off" spellcheck="false">
+        <button id="btnImportUrl" type="button" class="vc-btn vc-btn--ghost">加载</button>
+      </div>
+      <p id="importInfo" class="importbox__info"></p>
+    </div>
+
+    <div class="sheet-actions">
+      <button id="btnPlayOriginal" type="button" class="vc-btn vc-btn--ghost">试听原声</button>
+      <button id="btnPlayMine" type="button" class="vc-btn vc-btn--ghost" disabled>试听我的</button>
+      <button id="btnRedo" type="button" class="vc-btn vc-btn--ghost">重来</button>
+      <button id="btnSkip" type="button" class="vc-btn vc-btn--ghost">跳过 ▸</button>
+      <button id="btnSave" type="button" class="vc-btn vc-btn--primary" disabled>保存</button>
+      <button id="btnDelete" type="button" class="vc-btn vc-btn--danger" disabled>删除</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/bank-loader.js"></script>
+<script src="js/clips.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/recorder.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/waveform.js"></script>
+<script src="js/train-cards.js"></script>
+<script src="js/app-customize.js"></script>
+</body>
+</html>

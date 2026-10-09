@@ -1,0 +1,377 @@
+/* ============================================================
+   utatap.css —— 原项目基础样式（同源层）
+   ------------------------------------------------------------
+   【本文件在本次改造中做了什么】
+   仅做一件事：把裸色值与裸层级替换为 design-system.css 的令牌。
+   不重排结构、不改选择器、不改 DOM 钩子。
+
+   【重要：本文件是「同源层」，不是最终视觉】
+   它先于 design-system.css 加载（同优先级时后者胜），
+   因此这里的取值只在 design-system.css 未接管处生效，
+   起到「回退底色」的作用。改造的目的正是让这个底色
+   也落在统一令牌上，避免任何一层出现游离色值。
+
+   【硬编码豁免】js/home-overlay.js:81,90 以 setAttribute('style', ...)
+   为像素画布写入内联定位（position/top/left/width/height/z-index）
+   与 image-rendering，这些是 PIXI 画布的像素级定位参数，
+   必须保持整数倍缩放，不得令牌化。对应令牌 --z-pixel 已登记。
+   ============================================================ */
+
+#select_cover,
+#about_cover,
+#view,
+#view canvas,
+body,
+html {
+    height: 100%;
+    width: 100%
+}
+
+#select,
+#select_cover,
+#about,
+#about_cover,
+#bt_fs,
+#ng,
+.ok {
+    display: none
+}
+
+#select a,
+#about a,
+#bt_about a,
+#bt_backtrack a,
+#bt_feedback a,
+#bt_start a,
+#bt_select a,
+#bt_custom a {
+    color: var(--text-on-accent);
+    text-decoration: none;
+    border-bottom: dashed 1px var(--text-on-accent)
+}
+
+body,
+html {
+    position: absolute;
+    overflow: hidden;
+    text-align: center;
+    background: var(--surface-page);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+}
+
+#select_cover,
+#about_cover,
+#view {
+    position: fixed;
+    top: 0;
+    z-index: var(--z-canvas)
+}
+
+#bt_back,
+#bt_fs {
+    position: absolute;
+    z-index: var(--z-content);
+    padding: var(--space-2) var(--space-3);
+    left: 0;
+    font: var(--font-micro);
+    cursor: pointer;
+    transition: var(--duration-base) var(--ease-out);
+    user-select: none;
+}
+
+#bt_fs {
+    left: auto;
+    right: 0
+}
+
+#bt_close,
+#scene_loading,
+.container_vocal,
+.container_tracks {
+    user-select: none;
+}
+
+#scene_main,
+#scene_top {
+    width: 90%;
+    user-select: none;
+}
+
+#scene_loading {
+    width: 100%
+}
+
+#select,
+#about,
+#scene_loading,
+#scene_main,
+#scene_top {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    z-index: var(--z-content);
+    display: none
+}
+
+#scene_top h1 {
+    font-size: 1.5rem;
+    margin-bottom: 25px
+}
+
+#bt_start,
+#bt_select,
+#bt_custom {
+    margin-bottom: 15px
+}
+
+#scene_top .attention {
+    font-size: .9rem;
+    margin-top: 25px
+}
+
+#scene_top .tit {
+    margin-top: 20px;
+    margin-bottom: 10px
+}
+
+#scene_top .con {
+    letter-spacing: -.5rem
+}
+
+#scene_top .sns {
+    margin: 0 8px;
+    cursor: pointer
+}
+
+#scene_top .sns img {
+    width: 40px
+}
+
+#ng .atten {
+    font-size: .9rem;
+    margin-bottom: 20px
+}
+
+#scene_loading hr {
+    width: 0
+}
+#scene_loading p {
+    margin-bottom: 20px;
+}
+
+#scene_main,
+#scene_main .attention {
+    pointer-events: none
+}
+
+#bt_backtrack,
+#bt_feedback {
+    font-size: .9rem;
+    margin-top: 20px;
+    pointer-events: auto
+}
+
+#select_cover,
+#about_cover {
+    z-index: var(--z-float);
+    background: var(--scrim-base);
+    opacity: 1
+}
+
+#select,
+#about {
+    z-index: var(--z-panel);
+    color: var(--text-primary);
+    background: var(--surface-panel);
+    max-width: 680px;
+    letter-spacing: var(--tracking-normal);
+    line-height: 1.2;
+    width: 100%
+}
+
+#select_in,
+#about_in {
+    padding: var(--space-6) var(--space-5)
+}
+
+#bt_close {
+    font-size: 2rem;
+    cursor: pointer
+}
+
+#select .close,
+#about .close {
+    margin-bottom: 30px
+}
+
+#select .con,
+#about .con {
+    line-height: 1.7;
+    margin-bottom: 20px
+}
+
+#select .link,
+#about .link {
+    margin-top: 30px;
+    margin-bottom: 10px;
+    line-height: 1.5
+}
+
+#bt_back:hover,
+#bt_backtrack:hover,
+#bt_close:hover,
+#bt_feedback:hover,
+#bt_fs:hover,
+#scene_top .sns:hover,
+a:hover {
+    -webkit-animation: animover var(--duration-base) linear;
+    animation: animover var(--duration-base) linear
+}
+
+.split {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 42px;
+}
+.split > hr {
+    margin-block-start: 0;
+    margin-block-end: 0;
+    border-style: solid;
+    border-width: .1px;
+}
+.split > div {
+    width: 48%;
+}
+.option, .custom {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 27px;
+    margin-bottom: 10px;
+}
+.option > input {
+    display: none;
+}
+.selected {
+    background: var(--text-on-accent);
+    color: var(--text-inverse);
+    font-weight: bold;
+}
+.custom_dash {
+    border-style: dashed;
+    border-width: 1px 0 0 0;
+}
+.custom > input[type="file"] {
+    display: none;
+}
+.option > label, .custom > label {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+}
+
+
+@keyframes animover {
+    0.00% {
+        opacity: 0
+    }
+
+    100% {
+        opacity: 1
+    }
+}
+
+@-webkit-keyframes animover {
+    0.00% {
+        opacity: 0
+    }
+
+    100% {
+        opacity: 1
+    }
+}
+
+@media (max-width: 768px) {
+    #scene_top h1 {
+        font-size: 1.2rem;
+        margin-bottom: 18px
+    }
+
+    #bt_start,
+    #bt_select,
+    #scene_top .tit {
+        margin-bottom: 10px
+    }
+
+    #bt_about a,
+    #bt_start a,
+    #bt_select {
+        font-size: .9rem
+    }
+
+    #scene_top .attention {
+        font-size: .6rem;
+        margin-top: 18px
+    }
+
+    #scene_top .tit {
+        font-size: .9rem;
+        margin-top: 20px
+    }
+
+    #scene_top .con {
+        letter-spacing: -.5rem
+    }
+
+    #scene_top .sns {
+        margin: 0 8px
+    }
+
+    #scene_top .sns img {
+        width: 30px
+    }
+
+    #ng .atten {
+        font-size: .6rem;
+        margin-bottom: 15px
+    }
+
+    #bt_backtrack,
+    #bt_feedback {
+        font-size: .7rem
+    }
+
+    #select_in,
+    #about_in {
+        padding: var(--space-5) var(--space-4)
+    }
+
+    #bt_close {
+        font-size: 1.8rem;
+        cursor: pointer
+    }
+
+    #select,
+    #about {
+        letter-spacing: var(--tracking-normal)
+    }
+
+    #select a,
+    #about a {
+        color: var(--text-on-accent);
+        text-decoration: none;
+        border-bottom: dashed 1px var(--text-on-accent)
+    }
+
+    #select .con,
+    #select .link,
+    #about .con,
+    #about .link,
+    #scene_loading p {
+        font-size: .9rem
+    }
+}
